@@ -1,0 +1,5 @@
+.DS_Store
+config.py
+usernamesAlreadyKnown.txt
+userData.csv
+__pycache__
