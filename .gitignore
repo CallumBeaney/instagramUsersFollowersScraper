@@ -3,3 +3,7 @@ config.py
 usernamesAlreadyKnown.txt
 userData.csv
 __pycache__
+alreadyKnownFollowees.txt
+alreadyKnownFollowers.txt
+alreadyProcessedFollowers.txt
+done/

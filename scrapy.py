@@ -1,73 +1,122 @@
 import csv
 import os
+import time
 
 import instaloader
 from instaloader import Profile
 
-from config import alreadyKnown, userDataFile, myAccountUserName, myAccountPassword, profileToTarget
+from config import knownFollowersFile, knownFolloweesFile, knownProfiles, userDataFile, myAccountUserName, myAccountPassword, profileToTarget
 
 # https://instaloader.github.io/as-module.html
 
 userData = {
     "username": "",
     "name": "",
-    "instaUrl" : "",
-    "url": "",
-    "business": "",
-    "follows": 0,
-    "followers": 0,
+    "instagram" : "",
+    "website": "",
+    "follow status": "",
+    "business type": "",
+    "following count": 0,
+    "followers count": 0,
     "notes": ''
 }
 
 def main():
   L = instaloader.Instaloader()
   L.login(myAccountUserName, myAccountPassword)
+  time.sleep(1)
   targetProfile = profileToTarget
   # targetProfile = L.check_profile_id(targetProfile)
 
+  dataListToSave = []
+  
   profile = Profile.from_username(L.context, targetProfile)
-
-  userDataList = getProfileData(profile)
-  writeUserDataToSpreadsheet(userDataList, userDataFile)
+  time.sleep(1)
 
 
-def getProfileData(profile):
+  # IMPORTANT RE: 429 ERRORS: https://instaloader.github.io/troubleshooting.html#too-many-requests
+
+  # To avoid a 429 Error, try to do each of these one at a time, and wait a while after.
+  followers = profile.get_followers()
+  time.sleep(2)
+
+  followees = profile.get_followees()
+  time.sleep(2)
+
+
+  # Once you have built a file, you might not need to do so again for a while. 
+  buildFollowersFolloweesList(followers, knownFollowersFile)
+  buildFollowersFolloweesList(followees, knownFolloweesFile)
+
+  followersDataList = getProfileData(followers)
+  dataListToSave += followersDataList
+
+  followingDataList = getProfileData(followees)
+  dataListToSave += followingDataList
+
+  writeUserDataToSpreadsheet(dataListToSave, userDataFile)
+
+
+def buildFollowersFolloweesList(profiles, filePath):
+  for follower in profiles:
+    username = follower.username
+    if checkUsernameInKnownUsersFile(username, filePath) == False:      
+      saveUsernameToKnownUsersFile(username, filePath)
+  return
+
+
+def getProfileData(profiles):
   user_data_list = []
   count = 0
   print("Started building profile list")
-  for follower in profile.get_followers():
+  for follower in profiles:
 
     # if count == 3: # for debug
+    #   print("_________DEBUG_________ : BREAKING")
     #   break
-
-    if checkUsernameInKnownUsersFile(follower.username, alreadyKnown) == True:
-      print("#" + str(count) + " " + follower.username + " already scanned.\tSkipping.")
+    username = follower.username
+    
+    print("checkingUsernamesInKnownUsers")
+    if checkUsernameInKnownUsersFile(username, knownProfiles) == True:
+      print("#" + str(count) + " " + username + " already scanned.\tSkipping.")
       count += 1
       continue
 
-    saveUsernameToKnownUsersFile(follower.username, alreadyKnown)
+    print("saving to known users")
+    saveUsernameToKnownUsersFile(username, knownProfiles)
 
     # Make an instance of the userData dict and pass it all in
     user_data = userData.copy()
-
-    user_data["username"] = follower.username
+    user_data["username"] = username
     user_data["name"] = follower.full_name
-    user_data["instaUrl"] = f"https://www.instagram.com/{follower.username}/"    
-    user_data["url"] = follower.external_url
+    user_data["instagram"] = f"https://www.instagram.com/{username}/"    
+    user_data["website"] = follower.external_url
+
+    # This hack because I'm doing this from a 3rd account
+
+    isFollowed  = checkUsernameInKnownUsersFile(username, knownFollowersFile)
+    isFollowing = checkUsernameInKnownUsersFile(username, knownFolloweesFile)
+
+    if isFollowed and isFollowing:
+      user_data["follow status"] = "you follow each other"
+    elif isFollowed and not isFollowing:
+      user_data["follow status"] = "they follow you"
+    elif not isFollowed and isFollowing:
+      user_data["follow status"] = "you follow them"
 
     if follower.is_business_account:
-      user_data["business"] = follower.business_category_name
+      user_data["business type"] = follower.business_category_name
     
     if follower.is_private == False:
-      user_data["follows"] = follower.followees
-      user_data["followers"] = follower.followers
+      user_data["following count"] = follower.followees
+      user_data["followers count"] = follower.followers
 
     user_data_list.append(user_data)
 
-    print("#" + str(count) + " added " + follower.username + " to your user list.")
+    print("#" + str(count) + " added " + username + " to your user list.")
     count += 1
 
-  print("Finished building profile list")
+  print("Finished building data list")
   return user_data_list
 
 
