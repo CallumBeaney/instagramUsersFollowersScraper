@@ -39,26 +39,26 @@ def main():
 
   ##### COMMENT OUT THE FUNCTION GROUPS YOU DON'T NEED #####
 
+  dataListToSave = [] 
+
+  followers = profile.get_followers()
+  # followees = profile.get_followees()
+
   ### BUILD REFERENCE .TXT FILES:
     # To avoid a 429 Error, try to do each of these one at a time, and wait a while after.
     # Once you have built a followers/followees file, you might not need to do so again for a while. 
- 
-  # followers = profile.get_followers()
   # buildFollowersFolloweesList(followers, knownFollowersFile)
-  
-  # followees = profile.get_followees()
   # buildFollowersFolloweesList(followees, knownFolloweesFile)
 
   ### BUILD & EXPORT USER INFO .CSV 
     # it is preferable to do only one of these at a time, then wait an hour or so and do the other.
-  dataListToSave = [] 
-
   followersDataList = getProfileData(followers) 
   dataListToSave += followersDataList
 
   # followingDataList = getProfileData(followees)
   # dataListToSave += followingDataList
 
+  ### OUTPUT SCRAPED DATA
   writeUserDataToSpreadsheet(dataListToSave, userDataFile)
   return
 
@@ -86,9 +86,9 @@ def getProfileData(profiles):
     try:
       username = profile.username
 
-      # if count == 3:
-      #   print("_________DEBUG_________ : BREAKING")
-      #   break
+      if count == 3:
+        print("_________DEBUG_________ : BREAKING")
+        break
       
       print(f"checking {username} in known users")
       if checkUsernameInKnownUsersFile(username, knownProfiles) == True:
