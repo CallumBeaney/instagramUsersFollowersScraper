@@ -7,3 +7,6 @@ alreadyKnownFollowees.txt
 alreadyKnownFollowers.txt
 alreadyProcessedFollowers.txt
 done/
+followersData.csv
+alreadyProcessedProfiles.txt
+scrapyOldver.py

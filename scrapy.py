@@ -1,12 +1,13 @@
 import csv
 import os
 import time
+import sys
 
 import instaloader
 from instaloader import Profile
 from instaloader import exceptions
 
-from config import knownFollowersFile, knownFolloweesFile, knownProfiles, userDataFile, myAccountUserName, myAccountPassword, profileToTarget
+from config import knownFollowersFile, knownFolloweesFile, processedProfiles, userDataFile, myAccountUserName, myAccountPassword, profileToTarget
 
 # API NOTES:      https://instaloader.github.io/as-module.html
 # RE: 429 ERRORS: https://instaloader.github.io/troubleshooting.html#too-many-requests
@@ -22,44 +23,51 @@ userData = {
     "notes": ''
 }
 
+validArgs = ["scrape followers", "scrape followees", "get followers", "get followees"]
+usage = "Usage: python3 scrapy.py scrape/get followers/followees" 
 
 def main():
 
-      ########### Must not change anything below this line ###########
+  if len(sys.argv) != 3:
+    print(usage)
+    sys.exit(1)
+
+  userCommand = sys.argv[1] + " " + sys.argv[2]
+  if (userCommand not in validArgs):
+    print(usage)
+    sys.exit(1)
 
   L = instaloader.Instaloader()   # Create an instance of the bot
   L.login(myAccountUserName, myAccountPassword)
-  time.sleep(1)
-  targetProfile = profileToTarget # see config.py  
+  time.sleep(1) 
+  targetProfile = profileToTarget
   profile = Profile.from_username(L.context, targetProfile)
   time.sleep(1)
 
-      ########### Must not change anything above this line ###########
-
-
-  ##### COMMENT OUT THE FUNCTION GROUPS YOU DON'T NEED #####
-
   dataListToSave = [] 
 
-  followers = profile.get_followers()
-  # followees = profile.get_followees()
+  if (userCommand == "scrape followers"):
+    followers = profile.get_followers()
+    followingDataList = getProfileData(followers)
+    dataListToSave += followingDataList
 
-  ### BUILD REFERENCE .TXT FILES:
-    # To avoid a 429 Error, try to do each of these one at a time, and wait a while after.
-    # Once you have built a followers/followees file, you might not need to do so again for a while. 
-  # buildFollowersFolloweesList(followers, knownFollowersFile)
-  # buildFollowersFolloweesList(followees, knownFolloweesFile)
+  elif (userCommand == "scrape followees"):
+    followees = profile.get_followees()
+    followeeDataList = getProfileData(followees)
+    dataListToSave += followeeDataList
+ 
+  elif (userCommand == "get followers"):
+    followers = profile.get_followers()
+    buildFollowersFolloweesList(followers, knownFollowersFile)
+    sys.exit(0)
 
-  ### BUILD & EXPORT USER INFO .CSV 
-    # it is preferable to do only one of these at a time, then wait an hour or so and do the other.
-  followersDataList = getProfileData(followers) 
-  dataListToSave += followersDataList
+  elif (userCommand == "get followees"):
+    followees = profile.get_followees()
+    buildFollowersFolloweesList(followees, knownFollowersFile)
+    sys.exit(0)
 
-  # followingDataList = getProfileData(followees)
-  # dataListToSave += followingDataList
-
-  ### OUTPUT SCRAPED DATA
   writeUserDataToSpreadsheet(dataListToSave, userDataFile)
+
   return
 
 
@@ -85,19 +93,20 @@ def getProfileData(profiles):
 
     try:
       username = profile.username
-
-      if count == 3:
-        print("_________DEBUG_________ : BREAKING")
-        break
+      
+      if DEBUG is True:
+        if (count == 3):
+          print("_________DEBUG_________ : BREAKING")
+          break
       
       print(f"checking {username} in known users")
-      if checkUsernameInKnownUsersFile(username, knownProfiles) == True:
+      if checkUsernameInKnownUsersFile(username, processedProfiles) == True:
         print(username + " already scanned and in processed profiles list file. Skipping.")
         count += 1
         time.sleep(3)
         continue
 
-      saveUsernameToKnownUsersFile(username, knownProfiles)
+      saveUsernameToKnownUsersFile(username, processedProfiles)
 
       # Make an instance of the userData dict and pass it all in
       user_data = userData.copy()
@@ -130,7 +139,12 @@ def getProfileData(profiles):
       count += 1
     except TooManyRequestsException as ex:
       # if you get a 429 error, this should save what you got so far and output at least that
+      print("Exception: " + ex)
+      print("Returning already-scraped data, outputting file and exiting")
       return user_data_list
+    except QueryReturnedBadRequestException as ex:
+      print("Bad request exception. Check your scraping profile's account status. There may otherwise be an API issue.")
+      sys.exit(1)
 
   print("Finished building data list")
   return user_data_list
