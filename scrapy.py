@@ -6,8 +6,11 @@ import sys
 import instaloader
 from instaloader import Profile
 from instaloader import exceptions
+from instaloader.exceptions import QueryReturnedBadRequestException
+from instaloader.exceptions import TooManyRequestsException
 
-from config import knownFollowersFile, knownFolloweesFile, processedProfiles, userDataFile, myAccountUserName, myAccountPassword, profileToTarget
+
+from config import knownFollowersFile, knownFolloweesFile, processedProfiles, userDataFile, myAccountUserName, myAccountPassword, profileToTarget, DEBUG
 
 # API NOTES:      https://instaloader.github.io/as-module.html
 # RE: 429 ERRORS: https://instaloader.github.io/troubleshooting.html#too-many-requests
@@ -112,8 +115,12 @@ def getProfileData(profiles):
       user_data = userData.copy()
       user_data["username"] = username
       user_data["name"] = profile.full_name
-      user_data["instagram"] = f"https://www.instagram.com/{username}/"    
-      user_data["website"] = profile.external_url
+      user_data["instagram"] = f"https://www.instagram.com/{username}/"  
+
+      try:
+        user_data["website"] = profile.external_url
+      except KeyError:
+          user_data["website"] = ""  
 
       # This hack because I'm doing this from a 3rd account; see knownFollowersFile etc in config.py
       isFollowed  = checkUsernameInKnownUsersFile(username, knownFollowersFile)
@@ -137,14 +144,9 @@ def getProfileData(profiles):
       print("added " + username + " to your user list.")
       time.sleep(3) # interrupt to alay risk of 429 error
       count += 1
-    except TooManyRequestsException as ex:
-      # if you get a 429 error, this should save what you got so far and output at least that
-      print("Exception: " + ex)
-      print("Returning already-scraped data, outputting file and exiting")
+    except Exception as ex:
+      print(f"Exception: {ex}. Check your scraping profile's account status, or frequency of access. There may otherwise be an API issue.")
       return user_data_list
-    except QueryReturnedBadRequestException as ex:
-      print("Bad request exception. Check your scraping profile's account status. There may otherwise be an API issue.")
-      sys.exit(1)
 
   print("Finished building data list")
   return user_data_list
