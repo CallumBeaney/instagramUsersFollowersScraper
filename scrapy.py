@@ -128,11 +128,11 @@ def getProfileData(profiles):
 
       followStatus = ""
       if isFollowed and isFollowing:
-        followStatus = "you follow each other"
+        followStatus = "each other"
       elif isFollowed and not isFollowing:
-        followStatus = "they follow you"
+        followStatus = "follows you"
       elif not isFollowed and isFollowing:
-        followStatus = "you follow them"
+        followStatus = "you follow"
     
       user_data["follow status"] = followStatus
 
